@@ -256,6 +256,15 @@ The state bucket is created once, outside Terraform, with:
 - Monitor AWS usage and delete resources you no longer need.
 
 ---
+## Demo
+
+The Auto Scaling Group launched two instances across two availability zones.
+Refreshing the load balancer URL alternates between them, which shows the ALB
+distributing traffic.
+
+![Browser test](browser-test.png)
+
+![Curl test](curl-test.png)
 
 ## Cost Notes
 
