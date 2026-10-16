@@ -3,7 +3,7 @@ resource "aws_autoscaling_group" "app" {
   min_size                  = 2
   desired_capacity          = 2
   max_size                  = 4
-  vpc_zone_identifier       = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+  vpc_zone_identifier       = module.vpc.public_subnet_ids
   target_group_arns         = [aws_lb_target_group.app.arn]
   health_check_type         = "ELB"
   health_check_grace_period = 120
