@@ -2,8 +2,8 @@ resource "aws_lb" "app" {
   name               = "app-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = module.vpc.public_subnet_ids
+  security_groups    = [var.security_group_id]
+  subnets            = var.public_subnet_ids
 
   tags = { Name = "app-alb" }
 }
@@ -12,7 +12,7 @@ resource "aws_lb_target_group" "app" {
   name     = "app-tg"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = module.vpc.vpc_id
+  vpc_id   = var.vpc_id
 
   health_check {
     path                = "/"
@@ -34,9 +34,4 @@ resource "aws_lb_listener" "http" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.app.arn
   }
-}
-
-output "alb_dns_name" {
-  description = "Open this URL in a browser to reach the app"
-  value       = aws_lb.app.dns_name
 }
