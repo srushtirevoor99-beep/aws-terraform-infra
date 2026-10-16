@@ -14,3 +14,11 @@ module "alb" {
   public_subnet_ids = module.vpc.public_subnet_ids
   security_group_id = aws_security_group.alb.id
 }
+
+module "asg" {
+  source = "./modules/asg"
+
+  subnet_ids        = module.vpc.public_subnet_ids
+  target_group_arn  = module.alb.target_group_arn
+  security_group_id = aws_security_group.app.id
+}
