@@ -26,6 +26,18 @@ jobs:
       - name: Validate
         run: terraform validate
 
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          soft_fail: true
+
   plan:
     needs: validate
     if: github.event_name == 'pull_request'
@@ -45,4 +57,4 @@ jobs:
         run: terraform init -input=false
 
       - name: Plan
-        run: terraform plan -input=false -lock=false
+        run: terraform plan -input=false
