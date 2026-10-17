@@ -1,9 +1,13 @@
 resource "aws_lb" "app" {
-  name               = "app-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [var.security_group_id]
-  subnets            = var.public_subnet_ids
+  #checkov:skip=CKV_AWS_91:Access logging needs an S3 bucket and policy, out of scope for this demo
+  #checkov:skip=CKV_AWS_150:Deletion protection would block terraform destroy, which is needed to avoid billing
+  #checkov:skip=CKV2_AWS_20:HTTP only, demo project has no domain or ACM certificate
+  name                       = "app-alb"
+  internal                   = false
+  load_balancer_type         = "application"
+  security_groups            = [var.security_group_id]
+  subnets                    = var.public_subnet_ids
+  drop_invalid_header_fields = true
 
   tags = { Name = "app-alb" }
 }
@@ -26,6 +30,7 @@ resource "aws_lb_target_group" "app" {
 }
 
 resource "aws_lb_listener" "http" {
+  #checkov:skip=CKV_AWS_2:HTTP only, demo project has no domain or ACM certificate
   load_balancer_arn = aws_lb.app.arn
   port              = 80
   protocol          = "HTTP"
