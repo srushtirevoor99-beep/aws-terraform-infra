@@ -1,4 +1,5 @@
 data "aws_availability_zones" "available" {
+  #checkov:skip=CKV_AWS_394:AZ list is only used to pick the first two zones
   state = "available"
 }
 
@@ -13,11 +14,19 @@ resource "aws_vpc" "main" {
   }
 }
 
+# Lock down the default security group (no rules = no traffic)
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.main.id
+
+  tags = { Name = "default-sg-locked-down" }
+}
+
+# Instances get their public IPs from the launch template, not the subnet
 resource "aws_subnet" "public_a" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = var.public_subnet_cidrs[0]
   availability_zone       = data.aws_availability_zones.available.names[0]
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 
   tags = { Name = "public-subnet-a" }
 }
@@ -26,7 +35,7 @@ resource "aws_subnet" "public_b" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = var.public_subnet_cidrs[1]
   availability_zone       = data.aws_availability_zones.available.names[1]
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 
   tags = { Name = "public-subnet-b" }
 }

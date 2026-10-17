@@ -9,6 +9,7 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_launch_template" "app" {
+  #checkov:skip=CKV_AWS_88:Instances sit in public subnets to avoid NAT gateway cost, production would use private subnets with NAT
   name_prefix   = "app-lt-"
   image_id      = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
@@ -16,6 +17,12 @@ resource "aws_launch_template" "app" {
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [var.security_group_id]
+  }
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
   }
 
   user_data = base64encode(<<-EOF
