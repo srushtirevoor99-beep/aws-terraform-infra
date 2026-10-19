@@ -4,6 +4,7 @@ data "aws_availability_zones" "available" {
 }
 
 resource "aws_vpc" "main" {
+  #checkov:skip=CKV2_AWS_11:Flow logs need a CloudWatch log group and IAM role, out of scope for this demo
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
