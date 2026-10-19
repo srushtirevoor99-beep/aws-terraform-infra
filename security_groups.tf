@@ -36,6 +36,7 @@ resource "aws_security_group" "app" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "app_http_from_alb" {
+  #checkov:skip=CKV_AWS_260:False positive, source is the ALB security group, not 0.0.0.0/0
   security_group_id            = aws_security_group.app.id
   description                  = "HTTP from ALB"
   referenced_security_group_id = aws_security_group.alb.id
