@@ -2,6 +2,7 @@ resource "aws_lb" "app" {
   #checkov:skip=CKV_AWS_91:Access logging needs an S3 bucket and policy, out of scope for this demo
   #checkov:skip=CKV_AWS_150:Deletion protection would block terraform destroy, which is needed to avoid billing
   #checkov:skip=CKV2_AWS_20:HTTP only, demo project has no domain or ACM certificate
+  #checkov:skip=CKV2_AWS_28:WAF has a monthly cost, out of scope for this demo
   name                       = "app-alb"
   internal                   = false
   load_balancer_type         = "application"
@@ -13,6 +14,7 @@ resource "aws_lb" "app" {
 }
 
 resource "aws_lb_target_group" "app" {
+  #checkov:skip=CKV_AWS_378:ALB to instance traffic stays inside the VPC, demo instances have no certificates
   name     = "app-tg"
   port     = 80
   protocol = "HTTP"
@@ -31,6 +33,7 @@ resource "aws_lb_target_group" "app" {
 
 resource "aws_lb_listener" "http" {
   #checkov:skip=CKV_AWS_2:HTTP only, demo project has no domain or ACM certificate
+  #checkov:skip=CKV_AWS_103:HTTP listener, no TLS to configure in this demo
   load_balancer_arn = aws_lb.app.arn
   port              = 80
   protocol          = "HTTP"
