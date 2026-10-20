@@ -162,13 +162,14 @@ The workflow in `.github/workflows/terraform.yml` runs on every pull request and
 | `validate` | `terraform fmt -check -recursive`, `init -backend=false`, `validate` | Pull requests and `main` |
 | `security-scan` | Runs Checkov on the Terraform code | Pull requests and `main` |
 | `plan` | Assumes an AWS role through GitHub OIDC, then `terraform plan -lock=false` | Pull requests only, after `validate` passes |
+| `apply` | Assumes a separate write role through OIDC, plans, then applies that exact plan | Pushes to `main` only, after `validate` and `security-scan` pass and a reviewer approves the `production` environment |
 
 Notes:
 
 - The plan role is read-only, which is why the plan runs with `-lock=false` (a lock would need write access to the state bucket).
 - Checkov is enforcing: any failed check fails the build and blocks the pull request. Findings that are accepted on purpose are skipped in code with a written reason.
 - Accepted risks are documented in the code with `#checkov:skip=<ID>:<reason>` comments. Examples: HTTP-only listener (no domain or certificate), no WAF or access logging (cost), instances in public subnets (no NAT cost). Each skip has a reason next to it.
-- There is no automatic `apply`. Changes are applied manually from the command line.
+- `apply` runs only after a merge to `main` and only after manual approval of the `production` environment. It uses a separate IAM role that trusts only that environment, so pull requests and other branches can never deploy.
 
 ---
 
