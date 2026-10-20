@@ -33,7 +33,7 @@ resource "aws_launch_template" "app" {
     mkdir -p /opt/web
     echo "<h1>Hello from $(hostname)</h1>" > /opt/web/index.html
     docker run -d --restart always -p 80:80 \
-      -v /opt/web:/usr/share/nginx/html:ro nginx:latest
+      -v /opt/web:/usr/share/nginx/html:ro nginx:1.30.6
   EOF
   )
 

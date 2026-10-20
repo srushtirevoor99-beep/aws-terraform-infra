@@ -166,7 +166,7 @@ The workflow in `.github/workflows/terraform.yml` runs on every pull request and
 Notes:
 
 - The plan role is read-only, which is why the plan runs with `-lock=false` (a lock would need write access to the state bucket).
-- Checkov currently runs with `soft_fail: true`, so findings are reported without failing the build.
+- Checkov is enforcing: any failed check fails the build and blocks the pull request. Findings that are accepted on purpose are skipped in code with a written reason.
 - Accepted risks are documented in the code with `#checkov:skip=<ID>:<reason>` comments. Examples: HTTP-only listener (no domain or certificate), no WAF or access logging (cost), instances in public subnets (no NAT cost). Each skip has a reason next to it.
 - There is no automatic `apply`. Changes are applied manually from the command line.
 
@@ -312,9 +312,9 @@ The Auto Scaling Group launched two instances across two availability zones.
 Refreshing the load balancer URL alternates between them, which shows the ALB
 distributing traffic.
 
-![Browser test](browser-test.png)
+![Browser test](docs/browser-test.png)
 
-![Curl test](curl-test.png)
+![Curl test](docs/curl-test.png)
 
 ---
 
