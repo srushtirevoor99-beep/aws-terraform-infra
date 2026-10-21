@@ -317,6 +317,12 @@ distributing traffic.
 
 ![Curl test](docs/curl-test.png)
 
+   ### Gated deployment
+
+   Merging to `main` pauses the `apply` job until the `production` environment is approved.
+
+![Apply approval](docs/apply-approval.png)
+
 ---
 
 ## Cost Notes
