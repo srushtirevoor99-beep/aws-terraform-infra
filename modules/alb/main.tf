@@ -43,3 +43,26 @@ resource "aws_lb_listener" "http" {
     target_group_arn = aws_lb_target_group.app.arn
   }
 }
+
+# Fires when a target has failed health checks for three minutes in a row
+resource "aws_cloudwatch_metric_alarm" "unhealthy_hosts" {
+  alarm_name          = "app-unhealthy-hosts"
+  alarm_description   = "At least one instance behind the load balancer is failing health checks"
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "UnHealthyHostCount"
+  statistic           = "Maximum"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = 1
+  period              = 60
+  evaluation_periods  = 3
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
+
+  dimensions = {
+    LoadBalancer = aws_lb.app.arn_suffix
+    TargetGroup  = aws_lb_target_group.app.arn_suffix
+  }
+
+  tags = { Name = "app-unhealthy-hosts" }
+}

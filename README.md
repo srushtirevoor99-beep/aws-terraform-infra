@@ -100,6 +100,7 @@ flowchart TB
 - The **app security group** accepts HTTP **only from the ALB security group**, not from the internet.
 - The **Auto Scaling Group** keeps 2 to 4 `t3.micro` instances running across both zones and scales on average CPU (target 50%).
 - Instances run Ubuntu 22.04, require **IMDSv2**, install Docker on boot and serve a page from `nginx`.
+- A **CloudWatch alarm** watches the target group and goes into alarm when an instance has failed health checks for three minutes in a row. It can notify an SNS topic through the `alarm_actions` variable.
 - Instances sit in public subnets to avoid the cost of a NAT Gateway. A production setup would use private subnets with NAT.
 
 ---
@@ -112,6 +113,7 @@ flowchart TB
 | Security groups | `aws_security_group`, `aws_vpc_security_group_ingress_rule`, `aws_vpc_security_group_egress_rule` | ALB and app security groups with explicit rules |
 | Load balancer | `aws_lb`, `aws_lb_target_group`, `aws_lb_listener` | Public HTTP entry point and health-checked target group |
 | Compute | `aws_launch_template`, `aws_autoscaling_group`, `aws_autoscaling_policy`, `aws_ami` (data) | Self-healing, CPU-scaled instances from the latest Ubuntu 22.04 AMI |
+| Monitoring | `aws_cloudwatch_metric_alarm` | Alarm on unhealthy targets behind the load balancer |
 
 ---
 
@@ -125,6 +127,9 @@ flowchart TB
 | GitHub Actions | CI: format, validate, security scan and plan on every pull request |
 | GitHub OIDC and AWS IAM | Short-lived credentials for CI, no access keys stored in GitHub |
 | Checkov | Static security scanning of the Terraform code |
+| TFLint | Linting for Terraform and AWS-specific mistakes (documented variables and outputs, pinned providers) |
+| `terraform test` | Plan-time unit tests for every module, using a mocked AWS provider |
+| Amazon CloudWatch | Alarm on unhealthy load balancer targets |
 | Docker and nginx | Sample app served by each instance |
 | AWS CLI | Credentials, identity checks and resource inspection |
 | Ubuntu on WSL2 | Linux development environment |
@@ -136,20 +141,31 @@ flowchart TB
 ```text
 aws-terraform-infra/
 ├── .github/workflows/
-│   └── terraform.yml       # CI: validate, security-scan, plan
+│   └── terraform.yml       # CI: validate, lint, test, security-scan, plan, apply
 ├── modules/
 │   ├── vpc/                # VPC, subnets, Internet Gateway, route tables
-│   ├── alb/                # Load balancer, target group, listener
+│   ├── alb/                # Load balancer, target group, listener, health alarm
 │   └── asg/                # Launch template, Auto Scaling Group, scaling policy
+│                           # (every module has versions.tf and tests/*.tftest.hcl)
+├── docs/                   # Screenshots and notes
 ├── main.tf                 # Wires the three modules together
 ├── security_groups.tf      # ALB and app security groups and their rules
+├── variables.tf            # aws_region and alarm_actions
 ├── outputs.tf              # Prints the ALB DNS name
 ├── provider.tf             # AWS provider configuration
 ├── versions.tf             # Terraform and provider versions, S3 backend
+├── terraform.tfvars.example # Example values (copy to terraform.tfvars)
+├── .tflint.hcl             # TFLint configuration
 ├── .terraform.lock.hcl     # Provider version lock (commit this file)
 ├── .gitignore              # Keeps state, plans and local files out of Git
+├── LICENSE
 └── README.md
 ```
+
+### Design notes
+
+- **Why `security_groups.tf` is not a module:** the ALB group sends traffic to the app group and the app group accepts traffic from the ALB group. Each refers to the other, so they live next to the modules that consume them. Putting them inside the `alb` or `asg` module would create a circular dependency between the modules.
+- **Why the lock file is committed:** it pins provider versions, so CI and every developer install exactly the same provider build.
 
 ---
 
@@ -160,9 +176,11 @@ The workflow in `.github/workflows/terraform.yml` runs on every pull request and
 | Job | What it does | When |
 |---|---|---|
 | `validate` | `terraform fmt -check -recursive`, `init -backend=false`, `validate` | Pull requests and `main` |
+| `lint` | TFLint with the Terraform and AWS rulesets on the root and every module | Pull requests and `main` |
+| `test` | `terraform test` for each module (`vpc`, `alb`, `asg`) in parallel, with a mocked AWS provider so no credentials are needed | Pull requests and `main` |
 | `security-scan` | Runs Checkov on the Terraform code | Pull requests and `main` |
 | `plan` | Assumes an AWS role through GitHub OIDC, then `terraform plan -lock=false` | Pull requests only, after `validate` passes |
-| `apply` | Assumes a separate write role through OIDC, plans, then applies that exact plan | Pushes to `main` only, after `validate` and `security-scan` pass and a reviewer approves the `production` environment |
+| `apply` | Assumes a separate write role through OIDC, plans, then applies that exact plan | Pushes to `main` only, after `validate`, `lint`, `test` and `security-scan` pass and a reviewer approves the `production` environment |
 
 Notes:
 
@@ -170,6 +188,29 @@ Notes:
 - Checkov is enforcing: any failed check fails the build and blocks the pull request. Findings that are accepted on purpose are skipped in code with a written reason.
 - Accepted risks are documented in the code with `#checkov:skip=<ID>:<reason>` comments. Examples: HTTP-only listener (no domain or certificate), no WAF or access logging (cost), instances in public subnets (no NAT cost). Each skip has a reason next to it.
 - `apply` runs only after a merge to `main` and only after manual approval of the `production` environment. It uses a separate IAM role that trusts only that environment, so pull requests and other branches can never deploy.
+
+---
+
+## Configuration and Testing
+
+Inputs live in `variables.tf`:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `aws_region` | `ap-south-1` | Region the infrastructure is created in |
+| `alarm_actions` | `[]` | ARNs (for example an SNS topic) notified when the unhealthy-host alarm changes state |
+
+Copy `terraform.tfvars.example` to `terraform.tfvars` to override them. The state bucket and CI role names are not variables, because the backend block cannot use variables.
+
+Run the same checks as CI before you push:
+
+```bash
+terraform fmt -check -recursive
+tflint --init && tflint --recursive
+for m in vpc alb asg; do (cd modules/$m && terraform init -backend=false && terraform test); done
+```
+
+The module tests run at plan time against a mocked AWS provider. They check things that matter for security and reliability: IMDSv2 is required, subnets sit in different availability zones, the load balancer drops invalid headers, and the CPU target is 50%.
 
 ---
 
@@ -340,6 +381,9 @@ The VPC, subnets, Internet Gateway, route tables and security groups have no hou
 - CI with GitHub Actions: fmt, validate, plan and security scanning
 - Keyless AWS access from CI using GitHub OIDC
 - Reading and triaging Checkov findings, and documenting accepted risks
+- Linting Terraform with TFLint and writing plan-time unit tests with `terraform test` and a mocked provider
+- Monitoring with a CloudWatch alarm on load balancer target health
+- Gating deployments: a failed lint, test or scan blocks `apply`, and a reviewer must approve the `production` environment
 
 ---
 

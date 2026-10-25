@@ -12,3 +12,9 @@ variable "security_group_id" {
   description = "Security group attached to the load balancer"
   type        = string
 }
+
+variable "alarm_actions" {
+  description = "ARNs notified when the unhealthy-host alarm changes state; empty means the alarm is only visible in the console"
+  type        = list(string)
+  default     = []
+}

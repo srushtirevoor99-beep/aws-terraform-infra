@@ -28,6 +28,38 @@ jobs:
       - name: Validate
         run: terraform validate
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+
+      - name: Install TFLint plugins
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Run TFLint
+        run: tflint --recursive --format compact
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [vpc, alb, asg]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Test the ${{ matrix.module }} module
+        working-directory: modules/${{ matrix.module }}
+        run: |
+          terraform init -backend=false
+          terraform test
+
   security-scan:
     runs-on: ubuntu-latest
     steps:
@@ -64,7 +96,7 @@ jobs:
         run: terraform plan -input=false -lock=false
 
   apply:
-    needs: [validate, security-scan]
+    needs: [validate, lint, test, security-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production

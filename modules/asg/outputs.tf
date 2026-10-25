@@ -1,3 +1,4 @@
 output "asg_name" {
-  value = aws_autoscaling_group.app.name
+  description = "Name of the Auto Scaling Group"
+  value       = aws_autoscaling_group.app.name
 }
