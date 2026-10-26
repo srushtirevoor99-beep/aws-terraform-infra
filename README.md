@@ -225,6 +225,18 @@ The module tests run at plan time against a mocked AWS provider. They check thin
 
 ---
 
+## Required Permissions
+
+The Terraform deployment role must have the permissions required to create, update, describe, and delete the AWS resources defined in this project.
+
+**CloudWatch alarms:** If the Terraform configuration manages CloudWatch alarms, the apply role needs the corresponding CloudWatch permissions, including the specific `cloudwatch:PutMetricAlarm`, `cloudwatch:DescribeAlarms`, and `cloudwatch:DeleteAlarms` actions required by the configuration.
+
+Missing permissions can cause Terraform `AccessDenied` errors during `terraform plan` or `terraform apply`.
+
+**Security best practice:** Follow least privilege. Grant only the actions and resource access required by the Terraform configuration. Review any additional permissions reported by AWS errors before updating the role's IAM policy.
+
+---
+
 ## Getting Started
 
 ### 1. Clone the repository
